@@ -21,26 +21,39 @@ def get_access_token(client_id, client_secret):
     return data.get('access_token')
 
 # Obtener usuarios con la etiqueta "vtuber"
-def get_vtuber_users(access_token):
+def get_vtuber_users(access_token, cursor=None):
     headers = {
         'Client-ID': client_id,
         'Authorization': f'Bearer {access_token}'
     }
     search_url = 'https://api.twitch.tv/helix/search/channels'
     params = {
-        'query': 'vtuber'
+        'query': 'vtuber',
+        'first': 100  # Número de resultados por página
     }
+    if cursor:
+        params['after'] = cursor
     response = requests.get(search_url, headers=headers, params=params)
     data = response.json()
-    return data.get('data', [])
+    return data
 
 access_token = get_access_token(client_id, client_secret)
-vtuber_users = get_vtuber_users(access_token)
 
-for user in vtuber_users:
+all_filtered_users = []
+
+cursor = None
+while True:
+    response_data = get_vtuber_users(access_token, cursor)
+    vtuber_users = response_data.get('data', [])
+    all_filtered_users.extend([user for user in vtuber_users if 'Español' in user['tags']])
+    
+    cursor = response_data.get('pagination', {}).get('cursor')
+    if not cursor:
+        break
+
+# Imprimir los usuarios filtrados en la consola
+for user in all_filtered_users:
     username = user['broadcaster_login']
     profile_name = user['display_name']
-    tags = user['tags']
     profile_picture = user['thumbnail_url']
-    # follower_count = user['follower_count']
-    print(f"Username: {username} (profile_name), Profile Picture: {profile_picture}, Tags: {tags}\n")
+    print(f"Username: {username} (Profile Name: {profile_name}), Profile Picture: {profile_picture}")
